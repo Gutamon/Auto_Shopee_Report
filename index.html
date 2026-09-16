@@ -1,0 +1,1501 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>蝦皮報表助手</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* ============ Tokens ============ */
+:root{
+  color-scheme: light;
+  --page: #f4f3f9;
+  --surface: #ffffff;
+  --surface-2: #faf9fd;
+  --surface-sunken: #edecf5;
+  --border: rgba(20,16,50,0.10);
+  --border-strong: rgba(20,16,50,0.16);
+  --text-primary: #14112b;
+  --text-secondary: #55506f;
+  --text-muted: #8f89a8;
+
+  --accent: #6d5aeb;
+  --accent-ink: #4a3aa7;
+  --accent-soft: #efeaff;
+  --accent-glow: #8b7cf0;
+  --teal: #14b8ac;
+  --teal-soft: #e3faf7;
+
+  --chart-surface: #fcfcfb;
+  --chart-text-primary: #0b0b0b;
+  --chart-text-secondary: #52514e;
+  --chart-muted: #898781;
+  --chart-grid: #e1e0d9;
+  --chart-baseline: #c3c2b7;
+
+  --series-1: #2a78d6; /* blue - qty */
+  --series-2: #eb6834; /* orange - amount */
+  --series-3: #1baf7a; /* aqua */
+  --series-4: #eda100; /* yellow */
+  --series-7: #4a3aa7; /* violet */
+
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+  --success-text: #006300;
+
+  --shadow-sm: 0 1px 2px rgba(20,16,50,0.06);
+  --shadow-md: 0 8px 24px -8px rgba(35,26,90,0.16);
+  --shadow-lg: 0 24px 60px -20px rgba(35,26,90,0.28);
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page: #0e0c1a;
+    --surface: #171426;
+    --surface-2: #1c1830;
+    --surface-sunken: #12101f;
+    --border: rgba(255,255,255,0.09);
+    --border-strong: rgba(255,255,255,0.16);
+    --text-primary: #f4f2ff;
+    --text-secondary: #b6b0d6;
+    --text-muted: #837da3;
+
+    --accent: #8b7cf0;
+    --accent-ink: #c9c0ff;
+    --accent-soft: #241f42;
+    --accent-glow: #9085e9;
+    --teal: #2dd4c5;
+    --teal-soft: #12302c;
+
+    --chart-surface: #1a1a19;
+    --chart-text-primary: #ffffff;
+    --chart-text-secondary: #c3c2b7;
+    --chart-muted: #898781;
+    --chart-grid: #2c2c2a;
+    --chart-baseline: #383835;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-7: #9085e9;
+
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #e66767;
+    --success-text: #0ca30c;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.5);
+    --shadow-lg: 0 24px 60px -20px rgba(0,0,0,0.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page: #0e0c1a;
+  --surface: #171426;
+  --surface-2: #1c1830;
+  --surface-sunken: #12101f;
+  --border: rgba(255,255,255,0.09);
+  --border-strong: rgba(255,255,255,0.16);
+  --text-primary: #f4f2ff;
+  --text-secondary: #b6b0d6;
+  --text-muted: #837da3;
+
+  --accent: #8b7cf0;
+  --accent-ink: #c9c0ff;
+  --accent-soft: #241f42;
+  --accent-glow: #9085e9;
+  --teal: #2dd4c5;
+  --teal-soft: #12302c;
+
+  --chart-surface: #1a1a19;
+  --chart-text-primary: #ffffff;
+  --chart-text-secondary: #c3c2b7;
+  --chart-muted: #898781;
+  --chart-grid: #2c2c2a;
+  --chart-baseline: #383835;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-7: #9085e9;
+
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #e66767;
+  --success-text: #0ca30c;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.5);
+  --shadow-lg: 0 24px 60px -20px rgba(0,0,0,0.6);
+}
+
+*{ box-sizing: border-box; }
+body{
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: "Noto Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding-inline: max(16px, calc((100vw - 1180px)/2));
+  padding-block: 28px 64px;
+  position: relative;
+  overflow-x: hidden;
+}
+body::before{
+  content:"";
+  position: fixed;
+  inset: -20% -20% auto -20%;
+  height: 640px;
+  background:
+    radial-gradient(560px 420px at 18% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 60%),
+    radial-gradient(480px 360px at 82% 6%, color-mix(in srgb, var(--teal) 22%, transparent), transparent 60%);
+  filter: blur(10px);
+  pointer-events: none;
+  z-index: 0;
+}
+.shell{ position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+h1,h2,h3{ font-family: "Space Grotesk", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+
+/* ============ Top bar ============ */
+.topbar{ display:flex; align-items:center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand{ display:flex; align-items:center; gap: 12px; }
+.brand-mark{
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink:0;
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+.brand-mark svg{ width: 22px; height: 22px; }
+.brand-text .kicker{ font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+.brand-text h1{ font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.pulse-chip{
+  display:inline-flex; align-items:center; gap:7px;
+  font-size: 12.5px; font-weight: 600; color: var(--accent-ink);
+  background: var(--accent-soft); border: 1px solid var(--border);
+  padding: 7px 13px; border-radius: 999px;
+}
+.pulse-dot{ width:7px; height:7px; border-radius:50%; background: var(--teal); box-shadow: 0 0 0 0 rgba(20,184,166,.6); animation: pulse 2.2s infinite; }
+@keyframes pulse{
+  0%{ box-shadow: 0 0 0 0 color-mix(in srgb, var(--teal) 55%, transparent); }
+  70%{ box-shadow: 0 0 0 6px color-mix(in srgb, var(--teal) 0%, transparent); }
+  100%{ box-shadow: 0 0 0 0 color-mix(in srgb, var(--teal) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce){ .pulse-dot{ animation: none; } }
+
+/* ============ Hero / dropzone ============ */
+.hero{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 30px;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 28px;
+  position: relative;
+  overflow: hidden;
+}
+@media (max-width: 860px){ .hero{ grid-template-columns: 1fr; } }
+.hero-copy h2{ font-size: 26px; line-height: 1.28; color: var(--text-primary); }
+.hero-copy h2 .grad{
+  background: linear-gradient(100deg, var(--accent), var(--teal));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hero-copy p{ margin: 12px 0 0; color: var(--text-secondary); font-size: 14.5px; line-height: 1.7; max-width: 46ch; }
+.hero-steps{ display:flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.hero-step{ display:flex; gap: 10px; align-items:flex-start; font-size: 13px; color: var(--text-secondary); }
+.hero-step .n{
+  flex-shrink:0; width:20px; height:20px; border-radius:7px; background: var(--surface-sunken);
+  color: var(--text-primary); font-weight:700; font-size:11.5px; display:flex; align-items:center; justify-content:center;
+  border: 1px solid var(--border);
+}
+
+.dropzone{
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+  gap: 12px; padding: 28px 20px; min-height: 240px;
+  cursor: pointer; transition: border-color .15s, background .15s, transform .15s;
+  position: relative;
+}
+.dropzone:hover, .dropzone.drag{ border-color: var(--accent); background: var(--accent-soft); }
+.dropzone:focus-visible{ outline: 2px solid var(--accent); outline-offset: 3px; }
+.dropzone .icon-orb{
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+  display:flex; align-items:center; justify-content:center; box-shadow: var(--shadow-md);
+}
+.dropzone .icon-orb svg{ width: 26px; height: 26px; color: #fff; }
+.dropzone .dz-title{ font-weight: 700; font-size: 15.5px; color: var(--text-primary); }
+.dropzone .dz-sub{ font-size: 12.5px; color: var(--text-muted); max-width: 30ch; }
+.dropzone input[type=file]{ display:none; }
+.dz-filename{
+  font-size: 12.5px; color: var(--accent-ink); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 12px; font-weight: 600; display:none; align-items:center; gap:6px;
+}
+.dz-filename.show{ display:inline-flex; }
+
+/* scanning shimmer while parsing */
+.scan-line{
+  position:absolute; left:0; right:0; top:0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--teal), transparent);
+  opacity: 0; pointer-events: none;
+}
+.scan-line.active{ opacity: 1; animation: scan 1.1s linear infinite; }
+@keyframes scan{ 0%{ top: 0; } 100%{ top: 100%; } }
+
+/* ============ Section shell ============ */
+.panel{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 26px;
+}
+.panel-head{ display:flex; align-items:baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.panel-head h2{ font-size: 17px; font-weight: 700; }
+.panel-head .sub{ font-size: 12.5px; color: var(--text-muted); }
+.eyebrow{ font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); font-weight: 700; margin-bottom: 6px; display:block; }
+
+.hidden{ display:none !important; }
+
+/* ============ Period controls ============ */
+.period-grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 780px){ .period-grid{ grid-template-columns: 1fr; } }
+.period-card{
+  border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px;
+  background: var(--surface-2); display:flex; flex-direction:column; gap:10px;
+}
+.period-card .tag{
+  align-self:flex-start; font-size: 11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  padding: 4px 10px; border-radius: 999px;
+}
+.tag.week{ background: var(--accent-soft); color: var(--accent-ink); }
+.tag.month{ background: var(--teal-soft); color: color-mix(in srgb, var(--teal) 55%, black 25%); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .tag.month{ color: var(--teal); } }
+:root[data-theme="dark"] .tag.month{ color: var(--teal); }
+.date-row{ display:flex; gap:10px; align-items:center; }
+.date-row label{ font-size: 12.5px; color: var(--text-secondary); font-weight: 600; flex-shrink:0; width: 34px; }
+input[type=date], input[type=number], input[type=text]{
+  font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 9px;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-primary);
+  width: 100%;
+}
+input[type=date]:focus, input[type=number]:focus, input[type=text]:focus{ outline: 2px solid var(--accent); outline-offset: 1px; }
+.period-meta{ font-size: 12px; color: var(--text-muted); }
+.quickset{ display:flex; gap:6px; flex-wrap:wrap; margin-top: 2px; }
+.chip-btn{
+  font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
+  cursor: pointer; transition: all .12s;
+}
+.chip-btn:hover{ border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+
+/* ============ Manual inputs ============ */
+.manual-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 780px){ .manual-grid{ grid-template-columns: 1fr; } }
+.manual-box{ border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--surface-2); }
+.manual-box h3{ font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+.manual-box .hint{ font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+.ad-input-row{ display:flex; align-items:center; gap: 10px; }
+.ad-input-row .prefix{ font-size: 13px; color: var(--text-muted); }
+.order-cost-list{ max-height: 260px; overflow-y: auto; display:flex; flex-direction:column; gap: 6px; padding-right: 4px; }
+.order-cost-row{
+  display:grid; grid-template-columns: 1fr 90px; gap: 10px; align-items:center;
+  padding: 6px 8px; border-radius: 8px;
+}
+.order-cost-row:hover{ background: var(--surface-sunken); }
+.order-cost-row .oc-id{ font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.order-cost-row input{ padding: 6px 8px; font-size: 12.5px; text-align: right; }
+.order-cost-empty{ font-size: 12.5px; color: var(--text-muted); padding: 12px 4px; }
+
+/* ============ Analyze CTA ============ */
+.cta-row{ display:flex; justify-content:center; }
+.analyze-btn{
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 15px; font-weight: 600; letter-spacing: .01em;
+  color: #fff; background: linear-gradient(120deg, var(--accent), var(--accent-glow) 55%, var(--teal));
+  border: none; border-radius: 999px; padding: 14px 34px;
+  cursor: pointer; box-shadow: var(--shadow-md);
+  display:inline-flex; align-items:center; gap:10px;
+  transition: transform .15s, box-shadow .15s;
+}
+.analyze-btn:hover:not(:disabled){ transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+.analyze-btn:disabled{ opacity: .5; cursor: not-allowed; }
+.analyze-btn .spinner{ width:16px; height:16px; border-radius:50%; border: 2px solid rgba(255,255,255,.4); border-top-color:#fff; display:none; animation: spin .7s linear infinite; }
+.analyze-btn.loading .spinner{ display:inline-block; }
+.analyze-btn.loading .label-text::after{ content: "分析中"; }
+.analyze-btn:not(.loading) .label-text::after{ content: "生成週報與月報"; }
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* ============ Results ============ */
+.report-tabs{ display:flex; gap: 8px; border-bottom: 1px solid var(--border); margin-bottom: 20px; align-items:center; }
+.report-tabs .spacer{ flex:1; }
+.download-btn{
+  font-family: "Noto Sans TC", sans-serif;
+  font-size: 12.5px; font-weight: 600; color: var(--accent-ink);
+  background: var(--accent-soft); border: 1px solid var(--border);
+  border-radius: 999px; padding: 7px 14px 7px 10px; cursor: pointer;
+  display:inline-flex; align-items:center; gap:6px; margin-bottom: 10px;
+  transition: background .12s, border-color .15s;
+}
+.download-btn:hover{ background: var(--surface); border-color: var(--accent); }
+.download-btn svg{ width:14px; height:14px; }
+.report-tab{
+  font-family: "Space Grotesk", sans-serif; font-size: 14px; font-weight: 600; color: var(--text-muted);
+  background: none; border: none; padding: 10px 4px 12px; cursor: pointer; position:relative;
+}
+.report-tab.active{ color: var(--text-primary); }
+.report-tab.active::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background: linear-gradient(90deg, var(--accent), var(--teal)); border-radius: 2px 2px 0 0; }
+.report-tab .count{ font-size: 11px; color: var(--text-muted); margin-left: 5px; }
+
+.report-title-row{ display:flex; align-items:center; justify-content:space-between; gap: 12px; flex-wrap:wrap; margin-bottom: 20px; }
+.report-title-row h2{ font-size: 19px; }
+.report-title-row .range{ font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* stat tiles */
+.stat-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+@media (max-width: 980px){ .stat-grid{ grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 560px){ .stat-grid{ grid-template-columns: 1fr; } }
+.stat-tile{ border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--surface-2); display:flex; flex-direction:column; gap:6px; }
+.stat-tile .label{ font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.stat-tile .value{ font-size: 24px; font-weight: 700; font-family: "Space Grotesk", sans-serif; color: var(--text-primary); }
+.stat-tile.accent{ background: linear-gradient(155deg, var(--accent-soft), var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.stat-tile .delta{ font-size: 12px; font-weight: 600; }
+.stat-tile .delta.good{ color: var(--success-text); }
+.stat-tile .delta.bad{ color: var(--critical); }
+
+/* cost breakdown */
+.cost-table{ width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.cost-table th{ text-align:left; font-size: 11.5px; text-transform:uppercase; letter-spacing:.06em; color: var(--text-muted); font-weight:700; padding: 0 10px 8px; }
+.cost-table th.num, .cost-table td.num{ text-align:right; font-variant-numeric: tabular-nums; }
+.cost-table td{ padding: 10px; border-top: 1px solid var(--border); }
+.cost-table tr.total td{ border-top: 1.5px solid var(--border-strong); font-weight: 700; color: var(--text-primary); }
+.cost-table tr.net td{ font-weight: 700; color: var(--success-text); }
+.cost-table .bar-cell{ display:flex; align-items:center; gap:8px; }
+.cost-table .bar-track{ flex:1; height: 6px; border-radius: 4px; background: var(--surface-sunken); overflow:hidden; min-width: 60px; }
+.cost-table .bar-fill{ height: 100%; border-radius: 4px; background: var(--series-1); }
+.cost-table .pct{ font-size: 11.5px; color: var(--text-muted); width: 42px; text-align:right; flex-shrink:0; }
+.cost-table .manual-flag{ font-size: 10px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+
+.two-col{ display:grid; grid-template-columns: 1.3fr 1fr; gap: 24px; align-items:start; }
+@media (max-width: 980px){ .two-col{ grid-template-columns: 1fr; } }
+
+/* item table */
+.item-table-wrap{ overflow-x:auto; }
+table.item-table{ width:100%; border-collapse: collapse; font-size: 13px; min-width: 480px; }
+table.item-table th{ text-align:left; font-size: 11px; text-transform:uppercase; letter-spacing:.05em; color: var(--text-muted); font-weight:700; padding: 0 8px 8px; position: sticky; top:0; background: var(--surface); }
+table.item-table th.num, table.item-table td.num{ text-align:right; font-variant-numeric: tabular-nums; }
+table.item-table td{ padding: 9px 8px; border-top: 1px solid var(--border); color: var(--text-secondary); }
+table.item-table tr:hover td{ background: var(--surface-sunken); }
+table.item-table td.name{ color: var(--text-primary); font-weight: 600; }
+.item-scroll{ max-height: 420px; overflow-y: auto; }
+
+/* charts */
+.chart-card{ border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; background: var(--surface-2); }
+.chart-card h3{ font-size: 13.5px; font-weight: 700; margin-bottom: 2px; }
+.chart-card .chart-sub{ font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px; }
+.chart-stack{ display:flex; flex-direction:column; gap: 20px; }
+
+.bar-row{ display:grid; grid-template-columns: 92px 1fr 74px; gap: 10px; align-items:center; margin-bottom: 9px; }
+.bar-row .name{ font-size: 12px; color: var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bar-row .track{ height: 20px; border-radius: 6px; background: var(--surface-sunken); position:relative; overflow:hidden; }
+.bar-row .fill{ position:absolute; left:0; top:0; bottom:0; border-radius: 6px 4px 4px 6px; }
+.bar-row .val{ font-size: 12px; font-weight:600; color: var(--text-primary); text-align:right; font-variant-numeric: tabular-nums; }
+
+.empty-state{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  padding: 50px 20px; color: var(--text-muted); text-align:center; font-size: 13.5px;
+}
+
+footer.foot{ text-align:center; font-size: 12px; color: var(--text-muted); padding-top: 8px; }
+footer.foot a{ color: var(--accent-ink); text-decoration:none; }
+
+.sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 L9 9 L13 12 L20 5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="5" r="2" fill="white"/><path d="M4 19h16" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.55"/></svg>
+      </div>
+      <div class="brand-text">
+        <span class="kicker">Shopee Insight Engine</span>
+        <h1>蝦皮報表助手</h1>
+      </div>
+    </div>
+    <span class="pulse-chip"><span class="pulse-dot"></span>本機端運算・資料不上傳雲端</span>
+  </div>
+
+  <div class="hero">
+    <div class="scan-line" id="scanLine"></div>
+    <div class="hero-copy">
+      <h2>把整月的<span class="grad">蝦皮訂單原始資料</span>，變成一份能看懂的週報與月報</h2>
+      <p>拖入蝦皮賣家中心匯出的訂單明細，AI 引擎會自動辨識「不成立」例外規則、拆解手續費結構、統計品項出貨排行 —— 全程在你的瀏覽器裡完成，不會有任何一列資料離開這台電腦。</p>
+      <div class="hero-steps">
+        <div class="hero-step"><span class="n">1</span>匯入整月訂單原始資料 (.xlsx)</div>
+        <div class="hero-step"><span class="n">2</span>設定週報／月報的日期區間</div>
+        <div class="hero-step"><span class="n">3</span>補上大榮運費與廣告扣款（如有）</div>
+      </div>
+    </div>
+    <div>
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="上傳原始資料 Excel 檔">
+        <div class="icon-orb">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16V4M12 4L7 9M12 4l5 5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="dz-title">拖曳「原始資料.xlsx」到這裡</div>
+        <div class="dz-sub">或點擊選擇檔案・僅支援蝦皮賣家中心匯出的訂單明細格式</div>
+        <span class="dz-filename" id="dzFilename"></span>
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+      </div>
+    </div>
+  </div>
+
+  <div id="configPanel" class="panel hidden">
+    <div class="panel-head">
+      <div>
+        <span class="eyebrow">Step 2</span>
+        <h2>設定報表區間</h2>
+      </div>
+      <span class="sub" id="dataRangeHint"></span>
+    </div>
+    <div class="period-grid">
+      <div class="period-card">
+        <span class="tag week">週報</span>
+        <div class="date-row"><label for="weekStart">起</label><input type="date" id="weekStart"></div>
+        <div class="date-row"><label for="weekEnd">迄</label><input type="date" id="weekEnd"></div>
+        <div class="quickset" id="weekQuickset"></div>
+        <span class="period-meta" id="weekMeta"></span>
+      </div>
+      <div class="period-card">
+        <span class="tag month">月報</span>
+        <div class="date-row"><label for="monthStart">起</label><input type="date" id="monthStart"></div>
+        <div class="date-row"><label for="monthEnd">迄</label><input type="date" id="monthEnd"></div>
+        <div class="quickset" id="monthQuickset"></div>
+        <span class="period-meta" id="monthMeta"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="manualPanel" class="panel hidden">
+    <div class="panel-head">
+      <div>
+        <span class="eyebrow">Step 3 · 選填</span>
+        <h2>補上原始資料抓不到的成本</h2>
+      </div>
+      <span class="sub">套用到目前分頁選擇的報表區間</span>
+    </div>
+    <div class="manual-grid">
+      <div class="manual-box">
+        <h3>廣告扣款（期間總額）</h3>
+        <div class="hint">蝦皮廣告後台查得的期間扣款總額，原始資料無此欄位。</div>
+        <div class="ad-input-row">
+          <span class="prefix">NT$</span>
+          <input type="number" id="adSpend" min="0" step="1" placeholder="0" value="0">
+        </div>
+      </div>
+      <div class="manual-box">
+        <h3>大榮 / 補寄運費（逐筆）</h3>
+        <div class="hint">找到需要額外標註運費的訂單，逐筆輸入金額，其餘維持 0。</div>
+        <div class="order-cost-list" id="orderCostList">
+          <div class="order-cost-empty">請先完成 Step 1、2</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <button class="analyze-btn" id="analyzeBtn" disabled>
+      <span class="spinner"></span>
+      <span class="label-text"></span>
+    </button>
+  </div>
+
+  <div id="resultsPanel" class="hidden" style="display:flex; flex-direction:column; gap:20px;">
+    <div class="panel">
+      <div class="report-tabs">
+        <button class="report-tab active" data-report="week">週報 <span class="count" id="weekTabCount"></span></button>
+        <button class="report-tab" data-report="month">月報 <span class="count" id="monthTabCount"></span></button>
+        <span class="spacer"></span>
+        <button class="download-btn" id="downloadBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15V3M12 15L8 11M12 15l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v4a2 2 0 002 2h12a2 2 0 002-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          下載目前分頁 Excel（.xlsx）
+        </button>
+      </div>
+      <div id="reportBody"></div>
+    </div>
+  </div>
+
+  <footer class="foot">資料僅在瀏覽器本機解析，重新整理頁面即清除・依 CLAUDE.md 規則版本 2026-09-11</footer>
+</div>
+
+<template id="reportTemplate">
+  <div class="report-title-row">
+    <div>
+      <h2 class="rt-title"></h2>
+      <span class="range rt-range"></span>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-tile accent">
+      <span class="label">期間蝦皮訂單金額</span>
+      <span class="value rt-gmv">NT$0</span>
+    </div>
+    <div class="stat-tile">
+      <span class="label">期間蝦皮進帳</span>
+      <span class="value rt-net">NT$0</span>
+      <span class="delta good rt-net-pct"></span>
+    </div>
+    <div class="stat-tile">
+      <span class="label">成立訂單數</span>
+      <span class="value rt-orders">0</span>
+    </div>
+    <div class="stat-tile">
+      <span class="label">出貨品項種類</span>
+      <span class="value rt-items">0</span>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-bottom:22px;">
+    <div class="panel" style="box-shadow:none; border-color:var(--border); padding:20px;">
+      <h3 style="font-size:14px; font-weight:700; margin-bottom:14px;">訂單金額成本結構</h3>
+      <div style="overflow-x:auto;">
+        <table class="cost-table rt-cost-table">
+          <thead><tr><th>項目</th><th style="width:34%">佔比</th><th class="num">金額</th></tr></thead>
+          <tbody class="rt-cost-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel" style="box-shadow:none; border-color:var(--border); padding:20px;">
+      <h3 style="font-size:14px; font-weight:700; margin-bottom:4px;">尚未完成訂單</h3>
+      <p style="font-size:12px; color:var(--text-muted); margin:0 0 14px; line-height:1.6;">「運送中」「待出貨」訂單已計入出貨與品項統計，但因蝦皮尚未撥款，其金額與對應手續費已預先從進帳中扣除。</p>
+      <table class="cost-table rt-pending-table">
+        <thead><tr><th>項目</th><th class="num">金額</th></tr></thead>
+        <tbody class="rt-pending-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3 style="font-size:14px; font-weight:700; margin-bottom:12px;">品項出貨數量與銷售金額</h3>
+      <div class="item-table-wrap item-scroll">
+        <table class="item-table">
+          <thead><tr><th>品項</th><th class="num">出貨數量</th><th class="num">銷售金額</th></tr></thead>
+          <tbody class="rt-item-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="chart-stack">
+      <div class="chart-card">
+        <h3>銷售數量排行 Top 10</h3>
+        <div class="chart-sub">依出貨數量排序</div>
+        <div class="rt-qty-chart"></div>
+      </div>
+      <div class="chart-card">
+        <h3>銷售金額排行 Top 10</h3>
+        <div class="chart-sub">依銷售金額排序</div>
+        <div class="rt-amt-chart"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     Business rules — kept in sync with /蝦皮自動化/CLAUDE.md
+     ============================================================ */
+  const COL = {
+    ORDER_ID: 0, STATUS: 1, VOID_REASON: 3, ORDER_DATE: 6,
+    FEE_TXN: 19, FEE_OTHER: 20, FEE_PAYMENT: 21,
+    ITEM_NAME: 27, ITEM_PRICE: 31, ITEM_SKU: 33, QTY: 34
+  };
+
+  const VOID_KEEP_REASONS = [
+    "無法順利配送",
+    "包裹驗收失敗"
+  ];
+
+  function isKeptRow(row){
+    const status = String(row[COL.STATUS] || "").trim();
+    if (status !== "不成立") return true;
+    const reason = String(row[COL.VOID_REASON] || "");
+    return VOID_KEEP_REASONS.some(k => reason.includes(k));
+  }
+
+  function isPendingRow(row){
+    const status = String(row[COL.STATUS] || "").trim();
+    return status === "運送中" || status === "待出貨";
+  }
+
+  function parseDate(v){
+    if (v instanceof Date) return v;
+    if (typeof v === "number") {
+      // Excel serial date fallback
+      return new Date(Date.UTC(1899, 11, 30) + v * 86400000);
+    }
+    if (typeof v === "string") {
+      const d = new Date(v.replace(" ", "T"));
+      if (!isNaN(d)) return d;
+    }
+    return null;
+  }
+
+  function toNum(v){
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function fmtMoney(n){
+    const r = Math.round(n);
+    return "NT$" + r.toLocaleString("zh-Hant");
+  }
+  function fmtInt(n){ return Math.round(n).toLocaleString("zh-Hant"); }
+  function fmtPct(n){ return (n*100).toFixed(1) + "%"; }
+  function ymd(d){ return d.toISOString().slice(0,10); }
+
+  /* ============================================================
+     State
+     ============================================================ */
+  let rawRows = [];        // all data rows (array form), excluding header
+  let minDate = null, maxDate = null;
+  let orderCostMap = {};   // orderId -> manual 大榮/補寄 amount
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const dzFilename = document.getElementById("dzFilename");
+  const scanLine = document.getElementById("scanLine");
+  const configPanel = document.getElementById("configPanel");
+  const manualPanel = document.getElementById("manualPanel");
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const resultsPanel = document.getElementById("resultsPanel");
+  const dataRangeHint = document.getElementById("dataRangeHint");
+
+  const weekStart = document.getElementById("weekStart");
+  const weekEnd = document.getElementById("weekEnd");
+  const monthStart = document.getElementById("monthStart");
+  const monthEnd = document.getElementById("monthEnd");
+  const weekMeta = document.getElementById("weekMeta");
+  const monthMeta = document.getElementById("monthMeta");
+  const weekQuickset = document.getElementById("weekQuickset");
+  const monthQuickset = document.getElementById("monthQuickset");
+  const adSpend = document.getElementById("adSpend");
+  const orderCostList = document.getElementById("orderCostList");
+
+  setAnalyzeLabel(false);
+  function setAnalyzeLabel(){ /* handled via CSS ::after on .label-text */ }
+
+  /* ============================================================
+     File handling
+     ============================================================ */
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") fileInput.click(); });
+  ["dragenter","dragover"].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add("drag"); }));
+  ["dragleave","drop"].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove("drag"); }));
+  dropzone.addEventListener("drop", e => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+  fileInput.addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) handleFile(f);
+  });
+
+  function handleFile(file){
+    scanLine.classList.add("active");
+    dzFilename.classList.remove("show");
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        const wb = XLSX.read(e.target.result, { type: "array", cellDates: true });
+        const sheetName = wb.SheetNames.includes("orders") ? "orders" : wb.SheetNames[0];
+        const sheet = wb.Sheets[sheetName];
+        const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+        const body = grid.slice(1).filter(r => r && r[COL.ORDER_ID]);
+        rawRows = body;
+        computeDateRange();
+        setTimeout(() => {
+          scanLine.classList.remove("active");
+          dzFilename.textContent = "✓ " + file.name + "（" + rawRows.length + " 列）";
+          dzFilename.classList.add("show");
+          revealConfig();
+        }, 700);
+      } catch (err){
+        scanLine.classList.remove("active");
+        alert("讀取失敗，請確認檔案是否為蝦皮訂單明細 Excel 格式。\n" + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function computeDateRange(){
+    let mn = null, mx = null;
+    rawRows.forEach(r => {
+      const d = parseDate(r[COL.ORDER_DATE]);
+      if (!d) return;
+      if (!mn || d < mn) mn = d;
+      if (!mx || d > mx) mx = d;
+    });
+    minDate = mn; maxDate = mx;
+  }
+
+  function revealConfig(){
+    configPanel.classList.remove("hidden");
+    manualPanel.classList.remove("hidden");
+    analyzeBtn.disabled = false;
+
+    if (minDate && maxDate){
+      dataRangeHint.textContent = "資料涵蓋 " + ymd(minDate) + " ~ " + ymd(maxDate) + "（共 " + rawRows.length + " 列）";
+    }
+
+    // default month = full range
+    if (minDate && maxDate){
+      monthStart.value = ymd(minDate);
+      monthEnd.value = ymd(maxDate);
+      // default week = last 7 days of range
+      const wEnd = new Date(maxDate);
+      const wStart = new Date(maxDate);
+      wStart.setDate(wStart.getDate() - 6);
+      weekStart.value = ymd(wStart < minDate ? minDate : wStart);
+      weekEnd.value = ymd(wEnd);
+    }
+    buildQuicksets();
+    updateMeta();
+    rebuildOrderCostList();
+  }
+
+  function buildQuicksets(){
+    weekQuickset.innerHTML = "";
+    monthQuickset.innerHTML = "";
+    if (!minDate || !maxDate) return;
+    const mk = (label, s, e, target) => {
+      const b = document.createElement("button");
+      b.className = "chip-btn"; b.type = "button"; b.textContent = label;
+      b.addEventListener("click", () => {
+        target.start.value = ymd(s); target.end.value = ymd(e);
+        updateMeta(); rebuildOrderCostList();
+      });
+      return b;
+    };
+    // week presets: last 7 / previous 7
+    const last7End = new Date(maxDate);
+    const last7Start = new Date(maxDate); last7Start.setDate(last7Start.getDate()-6);
+    weekQuickset.appendChild(mk("最近 7 天", last7Start < minDate ? minDate : last7Start, last7End, {start:weekStart,end:weekEnd}));
+    const prev7End = new Date(last7Start); prev7End.setDate(prev7End.getDate()-1);
+    const prev7Start = new Date(prev7End); prev7Start.setDate(prev7Start.getDate()-6);
+    if (prev7Start >= minDate) weekQuickset.appendChild(mk("再前 7 天", prev7Start, prev7End, {start:weekStart,end:weekEnd}));
+
+    monthQuickset.appendChild(mk("整月範圍", minDate, maxDate, {start:monthStart,end:monthEnd}));
+  }
+
+  [weekStart, weekEnd, monthStart, monthEnd].forEach(el => el.addEventListener("change", () => { updateMeta(); rebuildOrderCostList(); }));
+
+  function daysBetween(s,e){ return Math.round((e-s)/86400000) + 1; }
+  function updateMeta(){
+    if (weekStart.value && weekEnd.value){
+      const s = new Date(weekStart.value), e = new Date(weekEnd.value);
+      weekMeta.textContent = e>=s ? (daysBetween(s,e) + " 天區間") : "迄日需晚於起日";
+    }
+    if (monthStart.value && monthEnd.value){
+      const s = new Date(monthStart.value), e = new Date(monthEnd.value);
+      monthMeta.textContent = e>=s ? (daysBetween(s,e) + " 天區間") : "迄日需晚於起日";
+    }
+  }
+
+  function filterByRange(startStr, endStr){
+    const s = new Date(startStr + "T00:00:00");
+    const e = new Date(endStr + "T23:59:59");
+    return rawRows.filter(r => {
+      const d = parseDate(r[COL.ORDER_DATE]);
+      return d && d >= s && d <= e;
+    });
+  }
+
+  function rebuildOrderCostList(){
+    // union of orders across both selected ranges so manual input carries over regardless of active tab
+    const ranges = [];
+    if (weekStart.value && weekEnd.value) ranges.push(filterByRange(weekStart.value, weekEnd.value));
+    if (monthStart.value && monthEnd.value) ranges.push(filterByRange(monthStart.value, monthEnd.value));
+    const seen = new Map();
+    ranges.flat().forEach(r => {
+      if (!isKeptRow(r)) return;
+      const id = String(r[COL.ORDER_ID]);
+      if (!seen.has(id)) seen.set(id, r);
+    });
+    orderCostList.innerHTML = "";
+    if (seen.size === 0){
+      orderCostList.innerHTML = '<div class="order-cost-empty">此區間沒有符合條件的訂單</div>';
+      return;
+    }
+    [...seen.keys()].sort().forEach(id => {
+      const row = document.createElement("div");
+      row.className = "order-cost-row";
+      const val = orderCostMap[id] || "";
+      row.innerHTML =
+        '<span class="oc-id">' + id + '</span>' +
+        '<input type="number" min="0" step="1" placeholder="0" data-order-id="' + id + '" value="' + val + '">';
+      orderCostList.appendChild(row);
+    });
+    orderCostList.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", () => {
+        const id = inp.getAttribute("data-order-id");
+        const v = toNum(inp.value);
+        if (v > 0) orderCostMap[id] = v; else delete orderCostMap[id];
+      });
+    });
+  }
+
+  /* ============================================================
+     Core aggregation for one period
+     ============================================================ */
+  function buildReport(rows, adSpendValue){
+    const kept = rows.filter(isKeptRow);
+    const pending = kept.filter(isPendingRow);
+
+    // dedupe orders for invoice fee + order count
+    const orderIds = new Set(kept.map(r => String(r[COL.ORDER_ID])));
+
+    let gmv = 0, feeTxn = 0, feeOther = 0, feePayment = 0;
+    kept.forEach(r => {
+      const lineTotal = toNum(r[COL.ITEM_PRICE]) * toNum(r[COL.QTY]);
+      gmv += lineTotal;
+      feeTxn += toNum(r[COL.FEE_TXN]);
+      feeOther += toNum(r[COL.FEE_OTHER]);
+      feePayment += toNum(r[COL.FEE_PAYMENT]);
+    });
+
+    let pendingGmv = 0, pendingFees = 0;
+    pending.forEach(r => {
+      pendingGmv += toNum(r[COL.ITEM_PRICE]) * toNum(r[COL.QTY]);
+      pendingFees += toNum(r[COL.FEE_TXN]) + toNum(r[COL.FEE_OTHER]) + toNum(r[COL.FEE_PAYMENT]);
+    });
+    const orderReturn = pendingGmv - pendingFees;
+
+    const invoiceFee = orderIds.size * 2.5;
+
+    let carrierFee = 0;
+    const seenOrderForCarrier = new Set();
+    kept.forEach(r => {
+      const id = String(r[COL.ORDER_ID]);
+      if (seenOrderForCarrier.has(id)) return;
+      seenOrderForCarrier.add(id);
+      carrierFee += orderCostMap[id] || 0;
+    });
+
+    const adSpendNum = toNum(adSpendValue);
+    const net = gmv - feeTxn - feeOther - feePayment - orderReturn - carrierFee - invoiceFee - adSpendNum;
+
+    // item aggregation — grouped and labeled by 商品選項貨號 (falls back to 商品選項名稱 only if 貨號 is blank)
+    const itemMap = new Map(); // sku -> {name, qty, amount}
+    kept.forEach(r => {
+      const sku = String(r[COL.ITEM_SKU] || r[COL.ITEM_NAME] || "").trim();
+      if (!sku) return;
+      const name = sku;
+      const qty = toNum(r[COL.QTY]);
+      const amount = toNum(r[COL.ITEM_PRICE]) * qty;
+      if (!itemMap.has(sku)) itemMap.set(sku, { name, qty: 0, amount: 0 });
+      const it = itemMap.get(sku);
+      it.qty += qty;
+      it.amount += amount;
+    });
+    const items = [...itemMap.values()].sort((a,b) => b.amount - a.amount);
+    const topQty = [...items].sort((a,b) => b.qty - a.qty).slice(0,10);
+    const topAmount = [...items].sort((a,b) => b.amount - a.amount).slice(0,10);
+
+    return {
+      gmv, feeTxn, feeOther, feePayment, orderReturn, carrierFee, invoiceFee, adSpend: adSpendNum, net,
+      pendingGmv, pendingFees, pendingCount: new Set(pending.map(r=>String(r[COL.ORDER_ID]))).size,
+      orderCount: orderIds.size,
+      items, topQty, topAmount
+    };
+  }
+
+  /* ============================================================
+     Render
+     ============================================================ */
+  const reportTemplate = document.getElementById("reportTemplate");
+  const reportBody = document.getElementById("reportBody");
+  let currentReports = null;
+  let activeTab = "week";
+
+  document.querySelectorAll(".report-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".report-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeTab = btn.dataset.report;
+      renderActive();
+    });
+  });
+
+  function renderActive(){
+    if (!currentReports) return;
+    render(currentReports[activeTab]);
+  }
+
+  function costRow(label, amount, base, opts){
+    opts = opts || {};
+    const pct = base ? Math.max(0, amount) / base : 0;
+    return '<tr>' +
+      '<td>' + label + (opts.manual ? '<span class="manual-flag">手動</span>' : '') + '</td>' +
+      '<td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + Math.min(100, pct*100).toFixed(1) + '%; background:' + (opts.color || "var(--series-1)") + '"></div></div><span class="pct">' + fmtPct(pct) + '</span></div></td>' +
+      '<td class="num">' + fmtMoney(amount) + '</td>' +
+      '</tr>';
+  }
+
+  function chartBars(container, data, key, color, maxOf){
+    container.innerHTML = "";
+    if (!data.length){
+      container.innerHTML = '<div class="empty-state">此區間尚無出貨品項</div>';
+      return;
+    }
+    const max = maxOf || Math.max(...data.map(d => d[key]));
+    data.forEach(d => {
+      const pct = max ? (d[key] / max) * 100 : 0;
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      const valText = key === "amount" ? fmtMoney(d.amount) : fmtInt(d.qty) + " 件";
+      row.innerHTML =
+        '<span class="name" title="' + d.name + '">' + d.name + '</span>' +
+        '<div class="track"><div class="fill" style="width:' + pct.toFixed(1) + '%; background:' + color + '"></div></div>' +
+        '<span class="val">' + valText + '</span>';
+      container.appendChild(row);
+    });
+  }
+
+  function render(report){
+    reportBody.innerHTML = "";
+    const frag = reportTemplate.content.cloneNode(true);
+
+    const label = activeTab === "week" ? "週報" : "月報";
+    const range = activeTab === "week" ? [weekStart.value, weekEnd.value] : [monthStart.value, monthEnd.value];
+    frag.querySelector(".rt-title").textContent = label + "分析結果";
+    frag.querySelector(".rt-range").textContent = range[0] + " ~ " + range[1];
+
+    frag.querySelector(".rt-gmv").textContent = fmtMoney(report.gmv);
+    frag.querySelector(".rt-net").textContent = fmtMoney(report.net);
+    frag.querySelector(".rt-net-pct").textContent = report.gmv ? "佔訂單金額 " + fmtPct(report.net / report.gmv) : "";
+    frag.querySelector(".rt-orders").textContent = fmtInt(report.orderCount);
+    frag.querySelector(".rt-items").textContent = fmtInt(report.items.length);
+
+    const base = report.gmv || 1;
+    const costBody = frag.querySelector(".rt-cost-body");
+    costBody.innerHTML =
+      costRow("期間蝦皮訂單金額", report.gmv, base, {color:"var(--accent)"}) +
+      costRow("成交手續費", report.feeTxn, base, {color:"var(--series-1)"}) +
+      costRow("其他服務費", report.feeOther, base, {color:"var(--series-1)"}) +
+      costRow("金流處理費", report.feePayment, base, {color:"var(--series-1)"}) +
+      costRow("訂單退貨（未完成）", report.orderReturn, base, {color:"var(--series-4)"}) +
+      costRow("大榮＋補寄運費", report.carrierFee, base, {color:"var(--series-2)", manual:true}) +
+      costRow("發票費用", report.invoiceFee, base, {color:"var(--series-1)"}) +
+      costRow("廣告扣款", report.adSpend, base, {color:"var(--series-2)", manual:true}) +
+      '<tr class="net"><td>期間蝦皮進帳</td><td></td><td class="num">' + fmtMoney(report.net) + '</td></tr>';
+
+    const pendingBody = frag.querySelector(".rt-pending-body");
+    pendingBody.innerHTML =
+      '<tr><td>未完成訂單數</td><td class="num">' + fmtInt(report.pendingCount) + '</td></tr>' +
+      '<tr><td>未完成訂單金額</td><td class="num">' + fmtMoney(report.pendingGmv) + '</td></tr>' +
+      '<tr><td>對應手續費（已預扣）</td><td class="num">' + fmtMoney(report.pendingFees) + '</td></tr>' +
+      '<tr class="total"><td>淨額（已計入退貨項）</td><td class="num">' + fmtMoney(report.orderReturn) + '</td></tr>';
+
+    const itemBody = frag.querySelector(".rt-item-body");
+    if (report.items.length === 0){
+      itemBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:24px 0;">此區間尚無出貨品項</td></tr>';
+    } else {
+      itemBody.innerHTML = report.items.map(it =>
+        '<tr><td class="name">' + it.name + '</td><td class="num">' + fmtInt(it.qty) + '</td><td class="num">' + fmtMoney(it.amount) + '</td></tr>'
+      ).join("");
+    }
+
+    chartBars(frag.querySelector(".rt-qty-chart"), report.topQty, "qty", "var(--series-1)");
+    chartBars(frag.querySelector(".rt-amt-chart"), report.topAmount, "amount", "var(--series-2)");
+
+    reportBody.appendChild(frag);
+  }
+
+  /* ============================================================
+     Excel native charts — OOXML chart parts, injected into the
+     SheetJS-produced .xlsx via JSZip (SheetJS itself cannot write
+     chart objects). One pie (cost breakdown) + two horizontal bars
+     (qty / amount top-10), matching 範例 週報/月報 chart1~3.
+     ============================================================ */
+  const CHART_SERIES_COLORS = ["2A78D6","EB6834","1BAF7A","EDA100","E87BA4","008300","4A3AA7","E34948"];
+
+  function xmlEscape(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+  }
+
+  // `chartInner` is everything that goes *inside* <c:chart>...</c:chart>
+  // (title + plotArea + legend + plotVisOnly), supplied by the bar/pie builders.
+  function chartSpaceWrap(chartInner){
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" ' +
+      'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<c:lang val="zh-TW"/><c:chart>' + chartInner + '</c:chart>' +
+      '<c:printSettings><c:headerFooter/><c:pageMargins b="0.75" l="0.7" r="0.7" t="0.75" header="0.3" footer="0.3"/><c:pageSetup/></c:printSettings>' +
+      '</c:chartSpace>';
+  }
+
+  function chartTitle(text){
+    return '<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr b="1"/></a:pPr>' +
+      '<a:r><a:rPr lang="zh-TW" altLang="en-US" b="1"/><a:t>' + xmlEscape(text) + '</a:t></a:r>' +
+      '</a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>';
+  }
+
+  // Excel formula sheet-name quoting: any non-alphanumeric name (CJK included) must be single-quoted
+  function sheetRef(sheetName, range){
+    return "'" + sheetName.replace(/'/g, "''") + "'!" + range;
+  }
+
+  function strCache(values){
+    return '<c:strCache><c:ptCount val="' + values.length + '"/>' +
+      values.map((v,i) => '<c:pt idx="' + i + '"><c:v>' + xmlEscape(v) + '</c:v></c:pt>').join("") +
+      '</c:strCache>';
+  }
+  function numCache(values){
+    return '<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="' + values.length + '"/>' +
+      values.map((v,i) => '<c:pt idx="' + i + '"><c:v>' + v + '</c:v></c:pt>').join("") +
+      '</c:numCache>';
+  }
+
+  // Horizontal bar chart (single series) — sheet ref cells are for round-tripping only;
+  // caches carry the real data so the chart renders even without live cell links.
+  function buildBarChartXML(title, categories, values, colorHex, sheetName, catRange, valRange){
+    const axId1 = 111111111, axId2 = 222222222;
+    const dPts = colorHex ? values.map((_,i) =>
+      '<c:dPt><c:idx val="' + i + '"/><c:invertIfNegative val="0"/><c:bubble3D val="0"/>' +
+      '<c:spPr><a:solidFill><a:srgbClr val="' + colorHex + '"/></a:solidFill></c:spPr></c:dPt>'
+    ).join("") : "";
+    const chartInner =
+      chartTitle(title) +
+      '<c:plotArea><c:layout/><c:barChart><c:barDir val="bar"/><c:grouping val="clustered"/><c:varyColors val="0"/>' +
+      '<c:ser><c:idx val="0"/><c:order val="0"/>' +
+      '<c:spPr><a:solidFill><a:srgbClr val="' + colorHex + '"/></a:solidFill></c:spPr>' +
+      dPts +
+      '<c:dLbls><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls>' +
+      '<c:cat><c:strRef><c:f>' + xmlEscape(sheetRef(sheetName, catRange)) + '</c:f>' + strCache(categories) + '</c:strRef></c:cat>' +
+      '<c:val><c:numRef><c:f>' + xmlEscape(sheetRef(sheetName, valRange)) + '</c:f>' + numCache(values) + '</c:numRef></c:val>' +
+      '</c:ser>' +
+      '<c:gapWidth val="60"/>' +
+      '<c:axId val="' + axId1 + '"/><c:axId val="' + axId2 + '"/></c:barChart>' +
+      '<c:catAx><c:axId val="' + axId1 + '"/><c:scaling><c:orientation val="maxMin"/></c:scaling><c:delete val="0"/><c:axPos val="l"/>' +
+      '<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>' +
+      '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900"/></a:pPr><a:endParaRPr lang="zh-TW"/></a:p></c:txPr>' +
+      '<c:crossAx val="' + axId2 + '"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx>' +
+      '<c:valAx><c:axId val="' + axId2 + '"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/>' +
+      '<c:majorGridlines/><c:numFmt formatCode="#,##0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>' +
+      '<c:crossAx val="' + axId1 + '"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>' +
+      '</c:plotArea><c:plotVisOnly val="1"/>';
+    return chartSpaceWrap(chartInner);
+  }
+
+  function buildPieChartXML(title, categories, values, sheetName, catRange, valRange){
+    const dPts = values.map((_,i) =>
+      '<c:dPt><c:idx val="' + i + '"/><c:bubble3D val="0"/>' +
+      '<c:spPr><a:solidFill><a:srgbClr val="' + CHART_SERIES_COLORS[i % CHART_SERIES_COLORS.length] + '"/></a:solidFill></c:spPr></c:dPt>'
+    ).join("");
+    const chartInner =
+      chartTitle(title) +
+      '<c:plotArea><c:layout/><c:pieChart><c:varyColors val="1"/>' +
+      '<c:ser><c:idx val="0"/><c:order val="0"/>' +
+      dPts +
+      '<c:dLbls>' +
+      '<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>' +
+      '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900"/></a:pPr><a:endParaRPr lang="zh-TW"/></a:p></c:txPr>' +
+      '<c:dLblPos val="outEnd"/>' +
+      '<c:showLegendKey val="0"/><c:showVal val="0"/><c:showCatName val="1"/><c:showSerName val="0"/><c:showPercent val="1"/><c:showBubbleSize val="0"/>' +
+      '<c:separator>' + xmlEscape(" ") + '</c:separator>' +
+      '<c:showLeaderLines val="1"/>' +
+      '</c:dLbls>' +
+      '<c:cat><c:strRef><c:f>' + xmlEscape(sheetRef(sheetName, catRange)) + '</c:f>' + strCache(categories) + '</c:strRef></c:cat>' +
+      '<c:val><c:numRef><c:f>' + xmlEscape(sheetRef(sheetName, valRange)) + '</c:f>' + numCache(values) + '</c:numRef></c:val>' +
+      '</c:ser><c:firstSliceAng val="0"/></c:pieChart>' +
+      '</c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/>';
+    return chartSpaceWrap(chartInner);
+  }
+
+  // twoCellAnchor using col/row + offset 0, one chart per "row band"
+  function drawingAnchorXML(id, name, rIdRef, fromCol, fromRow, colSpan, rowSpan){
+    const toCol = fromCol + colSpan, toRow = fromRow + rowSpan;
+    return '<xdr:twoCellAnchor>' +
+      '<xdr:from><xdr:col>' + fromCol + '</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>' + fromRow + '</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>' +
+      '<xdr:to><xdr:col>' + toCol + '</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>' + toRow + '</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>' +
+      '<xdr:graphicFrame macro="">' +
+      '<xdr:nvGraphicFramePr><xdr:cNvPr id="' + id + '" name="' + xmlEscape(name) + '"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>' +
+      '<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>' +
+      '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">' +
+      '<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="' + rIdRef + '"/>' +
+      '</a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>';
+  }
+
+  /**
+   * Injects three native charts (cost pie, qty bar, amount bar) AND real
+   * cell styles (header fills, bold, borders) into an xlsx ArrayBuffer
+   * produced by XLSX.write. Returns a new ArrayBuffer.
+   */
+  async function injectChartsIntoWorkbook(xlsxArrayBuffer, sheetName, chartSpecs, styleMap){
+    const zip = await JSZip.loadAsync(xlsxArrayBuffer);
+
+    const sheetPath = "xl/worksheets/sheet1.xml";
+    let sheetXml = await zip.file(sheetPath).async("string");
+
+    // 0) cell styles — hand-authored styles.xml + patched s="N" on <c> tags,
+    // since SheetJS's free build ignores font/fill/border on write (see note above).
+    if (styleMap){
+      zip.file("xl/styles.xml", buildStylesXml());
+      sheetXml = patchCellStyles(sheetXml, styleMap);
+      zip.file(sheetPath, sheetXml);
+    }
+
+    if (chartSpecs && chartSpecs.length){
+      // 1) chart parts
+      chartSpecs.forEach((spec, i) => {
+        zip.file("xl/charts/chart" + (i+1) + ".xml", spec.xml);
+      });
+
+      // 2) drawing part referencing all charts
+      const drawingAnchors = chartSpecs.map((spec, i) =>
+        drawingAnchorXML(i + 2, spec.title, "rId" + (i + 1), spec.fromCol, spec.fromRow, spec.colSpan, spec.rowSpan)
+      ).join("");
+      const drawingXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+        drawingAnchors + '</xdr:wsDr>';
+      zip.file("xl/drawings/drawing1.xml", drawingXml);
+
+      // 3) drawing rels -> charts
+      const drawingRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        chartSpecs.map((_, i) => '<Relationship Id="rId' + (i+1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart' + (i+1) + '.xml"/>').join("") +
+        '</Relationships>';
+      zip.file("xl/drawings/_rels/drawing1.xml.rels", drawingRels);
+
+      // 4) worksheet rels -> drawing (sheet1 usually has none from SheetJS)
+      let sheetRelsPath = "xl/worksheets/_rels/sheet1.xml.rels";
+      let sheetRelsFile = zip.file(sheetRelsPath);
+      let existingRelsXml = sheetRelsFile ? await sheetRelsFile.async("string") : null;
+      let drawingRId;
+      if (existingRelsXml){
+        const ids = [...existingRelsXml.matchAll(/Id="rId(\d+)"/g)].map(m => parseInt(m[1], 10));
+        drawingRId = "rId" + (Math.max(0, ...ids) + 1);
+        const newRel = '<Relationship Id="' + drawingRId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>';
+        existingRelsXml = existingRelsXml.replace("</Relationships>", newRel + "</Relationships>");
+        zip.file(sheetRelsPath, existingRelsXml);
+      } else {
+        drawingRId = "rId1";
+        const newRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="' + drawingRId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>' +
+          '</Relationships>';
+        zip.file(sheetRelsPath, newRelsXml);
+      }
+
+      // 5) sheet1.xml — add <drawing r:id="..."/> right before </worksheet>.
+      // Declare the r: namespace directly on <drawing> itself (valid anywhere in XML)
+      // rather than patching the root <worksheet> tag, whose exact attribute
+      // formatting SheetJS controls and we should not assume.
+      sheetXml = sheetXml.replace(
+        "</worksheet>",
+        '<drawing xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="' + drawingRId + '"/></worksheet>'
+      );
+      zip.file(sheetPath, sheetXml);
+
+      // 6) [Content_Types].xml — register chart + drawing overrides
+      const ctPath = "[Content_Types].xml";
+      let ctXml = await zip.file(ctPath).async("string");
+      let additions = '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>';
+      chartSpecs.forEach((_, i) => {
+        additions += '<Override PartName="/xl/charts/chart' + (i+1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>';
+      });
+      ctXml = ctXml.replace("</Types>", additions + "</Types>");
+      zip.file(ctPath, ctXml);
+    }
+
+    return await zip.generateAsync({ type: "arraybuffer" });
+  }
+
+  /* ============================================================
+     Excel cell styling — SheetJS's free build only ever writes a
+     single hardcoded font/fill/border (its cell-style writer keys
+     xf lookup purely off number format, ignoring font/fill/border on
+     the cell's `.s` object entirely). So real header fills / bold /
+     borders are hand-authored into xl/styles.xml and patched onto
+     <c> tags in sheet1.xml via JSZip, the same technique used for
+     native charts below.
+     ============================================================ */
+  // fixed style slots, index = position appended after xf 0 (the SheetJS default)
+  const CELL_STYLES = [
+    { key: "title",    font: { bold:true, sz:14, color:"14112B" } },
+    { key: "subtitle", font: { italic:true, sz:11, color:"8F89A8" } },
+    { key: "section",  font: { bold:true, sz:11, color:"FFFFFF" }, fill:"6D5AEB", border:true },
+    { key: "header",   font: { bold:true, sz:11, color:"4A3AA7" }, fill:"EFEAFF", border:true },
+    { key: "net",      font: { bold:true, sz:11, color:"006300" }, fill:"E3FAF7", border:true },
+    { key: "border",   border:true }
+  ];
+
+  function buildStylesXml(){
+    const fonts = ['<font><sz val="11"/><color rgb="FF14112B"/><name val="Noto Sans TC"/></font>'];
+    const fills = [
+      '<fill><patternFill patternType="none"/></fill>',
+      '<fill><patternFill patternType="gray125"/></fill>'
+    ];
+    const thin = '<left style="thin"><color rgb="FFD9D6EF"/></left><right style="thin"><color rgb="FFD9D6EF"/></right><top style="thin"><color rgb="FFD9D6EF"/></top><bottom style="thin"><color rgb="FFD9D6EF"/></bottom><diagonal/>';
+    const borders = ['<border><left/><right/><top/><bottom/><diagonal/></border>', '<border>' + thin + '</border>'];
+    const xfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>']; // s=0 default
+
+    CELL_STYLES.forEach(st => {
+      let fontId = 0;
+      if (st.font){
+        fontId = fonts.length;
+        const f = st.font;
+        fonts.push(
+          '<font>' + (f.bold ? '<b/>' : '') + (f.italic ? '<i/>' : '') +
+          '<sz val="' + (f.sz || 11) + '"/><color rgb="FF' + f.color + '"/><name val="Noto Sans TC"/></font>'
+        );
+      }
+      let fillId = 0;
+      if (st.fill){
+        fillId = fills.length;
+        fills.push('<fill><patternFill patternType="solid"><fgColor rgb="FF' + st.fill + '"/><bgColor indexed="64"/></patternFill></fill>');
+      }
+      const borderId = st.border ? 1 : 0;
+      xfs.push('<xf numFmtId="0" fontId="' + fontId + '" fillId="' + fillId + '" borderId="' + borderId + '" xfId="0" applyFont="1" applyFill="' + (fillId?1:0) + '" applyBorder="' + (borderId?1:0) + '"/>');
+    });
+
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<fonts count="' + fonts.length + '">' + fonts.join("") + '</fonts>' +
+      '<fills count="' + fills.length + '">' + fills.join("") + '</fills>' +
+      '<borders count="' + borders.length + '">' + borders.join("") + '</borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="' + xfs.length + '">' + xfs.join("") + '</cellXfs>' +
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+      '</styleSheet>';
+  }
+
+  // Patch <c r="ADDR" ...> tags in sheet1.xml so `s="N"` points at our
+  // hand-authored cellXfs index instead of whatever SheetJS assigned.
+  function patchCellStyles(sheetXml, styleMap){
+    const styleIndex = {}; // key -> xf index (1-based offset into CELL_STYLES, +1 for default xf 0)
+    CELL_STYLES.forEach((st, i) => { styleIndex[st.key] = i + 1; });
+
+    Object.keys(styleMap).forEach(key => {
+      const [r, c] = key.split(",").map(Number);
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const xfIdx = styleIndex[styleMap[key]];
+      if (xfIdx == null) return;
+      // Match this cell's <c .../> or <c ...>...</c> tag and set/replace its s="" attribute.
+      const cellTagRe = new RegExp('(<c r="' + addr + '"[^>]*?)(/?>)');
+      sheetXml = sheetXml.replace(cellTagRe, (m, head, tail) => {
+        let newHead = /\ss="\d+"/.test(head) ? head.replace(/\ss="\d+"/, ' s="' + xfIdx + '"') : head + ' s="' + xfIdx + '"';
+        return newHead + tail;
+      });
+    });
+    return sheetXml;
+  }
+
+  /* ============================================================
+     Excel export — single worksheet per report (週報 / 月報)
+     ============================================================ */
+  const HEADER_FILL = "6D5AEB";   // matches --accent
+  const SECTION_FILL = "EFEAFF";  // matches --accent-soft
+  const NET_FILL = "E3FAF7";      // matches --teal-soft
+
+  function buildWorksheetAOA(report, label, rangeText){
+    const rows = [];
+    const merges = [];
+    const styleMap = {}; // "r,c" -> style tag key
+    const push = (...cells) => { rows.push(cells); return rows.length - 1; };
+    const mark = (r, c, kind) => { styleMap[r + "," + c] = kind; };
+    const markRow = (r, kind, cols) => { for (let c = 0; c < (cols||3); c++) mark(r, c, kind); };
+
+    let r = push(label + "分析結果");
+    markRow(r, "title"); merges.push({ s:{r,c:0}, e:{r,c:2} });
+    r = push("區間：" + rangeText);
+    markRow(r, "subtitle"); merges.push({ s:{r,c:0}, e:{r,c:2} });
+    push("");
+
+    // ---- summary ----
+    r = push("摘要"); markRow(r, "section"); merges.push({ s:{r,c:0}, e:{r,c:2} });
+    push("期間蝦皮訂單金額", Math.round(report.gmv));
+    push("期間蝦皮進帳", Math.round(report.net));
+    push("成立訂單數", report.orderCount);
+    push("出貨品項種類", report.items.length);
+    push("");
+
+    // ---- cost structure (also the pie chart's data range) ----
+    r = push("項目", "金額", "備註"); markRow(r, "header");
+    const costStartRow = r;
+    const costLine = (name, amount, note) => { const rr = push(name, Math.round(amount * 100) / 100, note || ""); markRow(rr, "border"); return rr; };
+    costLine("成交手續費", report.feeTxn);
+    costLine("其他服務費", report.feeOther);
+    costLine("金流處理費", report.feePayment);
+    costLine("訂單退貨（未完成訂單預扣）", report.orderReturn);
+    costLine("大榮＋補寄運費", report.carrierFee, "手動輸入");
+    costLine("發票費用", report.invoiceFee);
+    costLine("廣告扣款", report.adSpend, "手動輸入");
+    const costEndRow = rows.length - 1;
+    r = push("期間蝦皮進帳", Math.round(report.net * 100) / 100); markRow(r, "net", 2);
+    push("");
+
+    // ---- pending orders ----
+    r = push("尚未完成訂單（運送中／待出貨，已預扣手續費）"); markRow(r, "section"); merges.push({ s:{r,c:0}, e:{r,c:2} });
+    r = push("未完成訂單數", report.pendingCount); markRow(r, "border", 2);
+    r = push("未完成訂單金額", Math.round(report.pendingGmv)); markRow(r, "border", 2);
+    r = push("對應手續費（已預扣）", Math.round(report.pendingFees)); markRow(r, "border", 2);
+    push("");
+
+    // ---- item detail ----
+    r = push("品項", "出貨數量", "銷售金額"); markRow(r, "header");
+    report.items.forEach(it => { const rr = push(it.name, it.qty, Math.round(it.amount * 100) / 100); markRow(rr, "border"); });
+    push("");
+
+    // ---- ranking (also bar charts' data ranges) ----
+    r = push("銷售數量排行 Top 10", "出貨數量", ""); markRow(r, "header");
+    const qtyStartRow = r + 1;
+    report.topQty.forEach(it => { const rr = push(it.name, it.qty, ""); markRow(rr, "border", 2); });
+    const qtyEndRow = rows.length - 1;
+    push("");
+    r = push("銷售金額排行 Top 10", "銷售金額", ""); markRow(r, "header");
+    const amtStartRow = r + 1;
+    report.topAmount.forEach(it => { const rr = push(it.name, Math.round(it.amount * 100) / 100, ""); markRow(rr, "border", 2); });
+    const amtEndRow = rows.length - 1;
+
+    return {
+      rows, merges, styleMap,
+      cost: { startRow: costStartRow, endRow: costEndRow },
+      qty: { startRow: qtyStartRow, endRow: qtyEndRow },
+      amt: { startRow: amtStartRow, endRow: amtEndRow }
+    };
+  }
+
+  async function downloadReportExcel(report, label, rangeText, fileLabel){
+    const built = buildWorksheetAOA(report, label, rangeText);
+    const { rows, merges, styleMap } = built;
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [{ wch: 30 }, { wch: 16 }, { wch: 14 }];
+    ws["!merges"] = merges;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, label);
+    const today = ymd(new Date()).replace(/-/g, "");
+    const filename = "蝦皮" + fileLabel + "_" + rangeText.replace(/ ~ /g, "-") + "_" + today + ".xlsx";
+
+    let buf = XLSX.write(wb, { type: "array", bookType: "xlsx", cellStyles: true });
+
+    // ---- cell styles (header fills / bold / borders) — applied first so a later
+    // chart-injection failure still leaves a properly styled workbook. ----
+    try {
+      buf = await injectChartsIntoWorkbook(buf, label, [], styleMap);
+    } catch (err){
+      console.warn("style injection failed, exporting unstyled workbook", err);
+    }
+
+    // ---- native charts: pie (cost breakdown) + 2 horizontal bars (top-10 rankings) ----
+    try {
+      const costCats = ["成交手續費","其他服務費","金流處理費","訂單退貨","大榮＋補寄運費","發票費用","廣告扣款"];
+      const costVals = [report.feeTxn, report.feeOther, report.feePayment, Math.max(0,report.orderReturn), report.carrierFee, report.invoiceFee, report.adSpend]
+        .map(v => Math.round(v * 100) / 100);
+      const pieXml = buildPieChartXML(
+        "訂單金額成本結構佔比", costCats, costVals, label,
+        "$A$" + (built.cost.startRow + 1) + ":$A$" + (built.cost.endRow + 1),
+        "$B$" + (built.cost.startRow + 1) + ":$B$" + (built.cost.endRow + 1)
+      );
+
+      const qtyCats = report.topQty.map(it => it.name);
+      const qtyVals = report.topQty.map(it => it.qty);
+      const qtyXml = buildBarChartXML(
+        "銷售數量排行 Top 10", qtyCats, qtyVals, CHART_SERIES_COLORS[0], label,
+        "$A$" + (built.qty.startRow + 1) + ":$A$" + (built.qty.endRow + 1),
+        "$B$" + (built.qty.startRow + 1) + ":$B$" + (built.qty.endRow + 1)
+      );
+
+      const amtCats = report.topAmount.map(it => it.name);
+      const amtVals = report.topAmount.map(it => Math.round(it.amount * 100) / 100);
+      const amtXml = buildBarChartXML(
+        "銷售金額排行 Top 10", amtCats, amtVals, CHART_SERIES_COLORS[1], label,
+        "$A$" + (built.amt.startRow + 1) + ":$A$" + (built.amt.endRow + 1),
+        "$B$" + (built.amt.startRow + 1) + ":$B$" + (built.amt.endRow + 1)
+      );
+
+      const chartSpecs = [
+        { xml: pieXml, title: "成本結構圓餅圖", fromCol: 4, fromRow: built.cost.startRow - 1, colSpan: 8, rowSpan: 18 },
+        { xml: qtyXml, title: "銷售數量排行圖", fromCol: 4, fromRow: built.cost.startRow - 1 + 19, colSpan: 8, rowSpan: 16 },
+        { xml: amtXml, title: "銷售金額排行圖", fromCol: 4, fromRow: built.cost.startRow - 1 + 36, colSpan: 8, rowSpan: 16 }
+      ];
+
+      buf = await injectChartsIntoWorkbook(buf, label, chartSpecs);
+    } catch (err){
+      console.warn("chart injection failed, exporting data-only workbook", err);
+    }
+
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  document.getElementById("downloadBtn").addEventListener("click", (e) => {
+    if (!currentReports) return;
+    const btn = e.currentTarget;
+    const label = activeTab === "week" ? "週報" : "月報";
+    const rangeText = activeTab === "week" ? (weekStart.value + " ~ " + weekEnd.value) : (monthStart.value + " ~ " + monthEnd.value);
+    btn.disabled = true;
+    downloadReportExcel(currentReports[activeTab], label, rangeText, label).finally(() => { btn.disabled = false; });
+  });
+
+  /* ============================================================
+     Analyze action
+     ============================================================ */
+  analyzeBtn.addEventListener("click", () => {
+    if (!weekStart.value || !weekEnd.value || !monthStart.value || !monthEnd.value){
+      alert("請先完整設定週報與月報的日期區間");
+      return;
+    }
+    analyzeBtn.classList.add("loading");
+    analyzeBtn.disabled = true;
+    setTimeout(() => {
+      const weekRows = filterByRange(weekStart.value, weekEnd.value);
+      const monthRows = filterByRange(monthStart.value, monthEnd.value);
+      currentReports = {
+        week: buildReport(weekRows, adSpend.value),
+        month: buildReport(monthRows, adSpend.value)
+      };
+      document.getElementById("weekTabCount").textContent = "(" + currentReports.week.orderCount + " 筆)";
+      document.getElementById("monthTabCount").textContent = "(" + currentReports.month.orderCount + " 筆)";
+      resultsPanel.classList.remove("hidden");
+      renderActive();
+      analyzeBtn.classList.remove("loading");
+      analyzeBtn.disabled = false;
+      resultsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 900);
+  });
+
+})();
+</script>
+</body>
+</html>
+
