@@ -311,8 +311,20 @@ input[type=date]:focus, input[type=number]:focus, input[type=text]:focus{ outlin
 .manual-box{ border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--surface-2); }
 .manual-box h3{ font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
 .manual-box .hint{ font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
-.ad-input-row{ display:flex; align-items:center; gap: 10px; }
+.ad-input-row{ display:flex; align-items:center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .ad-input-row .prefix{ font-size: 13px; color: var(--text-muted); }
+.ad-input-row input[type=number]{ width: 120px; flex: 0 0 auto; }
+.ad-fallback-hint{ font-size: 11.5px; color: var(--text-muted); }
+.ad-file-row{ display:flex; align-items:center; gap: 10px; flex-wrap: wrap; }
+.ad-file-btn{
+  font-family: "Noto Sans TC", sans-serif; font-size: 12.5px; font-weight: 600; color: var(--accent-ink);
+  background: var(--accent-soft); border: 1px solid var(--border); border-radius: 999px;
+  padding: 7px 14px; cursor: pointer; transition: background .12s, border-color .15s;
+}
+.ad-file-btn:hover{ background: var(--surface); border-color: var(--accent); }
+.ad-file-status{ font-size: 12px; color: var(--text-secondary); }
+.ad-file-status.ok{ color: var(--success-text); font-weight: 600; }
+.ad-file-status.err{ color: var(--critical); font-weight: 600; }
 .order-cost-list{ max-height: 260px; overflow-y: auto; display:flex; flex-direction:column; gap: 6px; padding-right: 4px; }
 .order-cost-row{
   display:grid; grid-template-columns: 1fr 90px; gap: 10px; align-items:center;
@@ -385,12 +397,16 @@ input[type=date]:focus, input[type=number]:focus, input[type=text]:focus{ outlin
 .cost-table th.num, .cost-table td.num{ text-align:right; font-variant-numeric: tabular-nums; }
 .cost-table td{ padding: 10px; border-top: 1px solid var(--border); }
 .cost-table tr.total td{ border-top: 1.5px solid var(--border-strong); font-weight: 700; color: var(--text-primary); }
-.cost-table tr.net td{ font-weight: 700; color: var(--success-text); }
+.cost-table tr.net td{ font-weight: 700; color: var(--success-text); border-top: 1.5px solid var(--border-strong); }
+.cost-table tr.net .pct{ color: var(--success-text); }
 .cost-table .bar-cell{ display:flex; align-items:center; gap:8px; }
 .cost-table .bar-track{ flex:1; height: 6px; border-radius: 4px; background: var(--surface-sunken); overflow:hidden; min-width: 60px; }
 .cost-table .bar-fill{ height: 100%; border-radius: 4px; background: var(--series-1); }
 .cost-table .pct{ font-size: 11.5px; color: var(--text-muted); width: 42px; text-align:right; flex-shrink:0; }
 .cost-table .manual-flag{ font-size: 10px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+.cost-table .manual-flag.auto{ color: color-mix(in srgb, var(--teal) 55%, black 25%); background: var(--teal-soft); }
+:root[data-theme="dark"] .cost-table .manual-flag.auto{ color: var(--teal); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .cost-table .manual-flag.auto{ color: var(--teal); } }
 
 .two-col{ display:grid; grid-template-columns: 1.3fr 1fr; gap: 24px; align-items:start; }
 @media (max-width: 980px){ .two-col{ grid-template-columns: 1fr; } }
@@ -504,11 +520,17 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
     </div>
     <div class="manual-grid">
       <div class="manual-box">
-        <h3>廣告扣款（期間總額）</h3>
-        <div class="hint">蝦皮廣告後台查得的期間扣款總額，原始資料無此欄位。</div>
+        <h3>廣告扣款</h3>
+        <div class="hint">優先匯入蝦皮廣告後台匯出的「日期＋金額」明細檔，工具會依週報／月報的日期區間自動加總；沒有明細檔才用下方總額輸入框。</div>
+        <div class="ad-file-row">
+          <button type="button" class="ad-file-btn" id="adFileBtn">選擇廣告明細檔（.xlsx/.csv）</button>
+          <input type="file" id="adFileInput" accept=".xlsx,.xls,.csv" style="display:none">
+          <span class="ad-file-status" id="adFileStatus"></span>
+        </div>
         <div class="ad-input-row">
           <span class="prefix">NT$</span>
           <input type="number" id="adSpend" min="0" step="1" placeholder="0" value="0">
+          <span class="ad-fallback-hint" id="adFallbackHint">（尚未匯入明細檔，將使用此手動總額）</span>
         </div>
       </div>
       <div class="manual-box">
@@ -681,6 +703,7 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
   let rawRows = [];        // all data rows (array form), excluding header
   let minDate = null, maxDate = null;
   let orderCostMap = {};   // orderId -> manual 大榮/補寄 amount
+  let adLogRows = [];      // [{date: Date, amount: number(abs)}] parsed from optional 廣告明細檔
 
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("fileInput");
@@ -702,9 +725,14 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
   const monthQuickset = document.getElementById("monthQuickset");
   const adSpend = document.getElementById("adSpend");
   const orderCostList = document.getElementById("orderCostList");
+  const adFileBtn = document.getElementById("adFileBtn");
+  const adFileInput = document.getElementById("adFileInput");
+  const adFileStatus = document.getElementById("adFileStatus");
+  const adFallbackHint = document.getElementById("adFallbackHint");
 
   setAnalyzeLabel(false);
   function setAnalyzeLabel(){ /* handled via CSS ::after on .label-text */ }
+  updateAdFallbackHint();
 
   /* ============================================================
      File handling
@@ -758,6 +786,87 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
       if (!mx || d > mx) mx = d;
     });
     minDate = mn; maxDate = mx;
+  }
+
+  /* ============================================================
+     Ad-spend log import (optional 2nd file) — 蝦皮廣告後台匯出的
+     「日期＋每日金額」明細，寬鬆比對表頭：只認「日期」「金額」
+     兩個關鍵字，不依賴「類型」欄的確切文字（範例中就不一致）。
+     ============================================================ */
+  adFileBtn.addEventListener("click", () => adFileInput.click());
+  adFileInput.addEventListener("change", e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) handleAdFile(f);
+  });
+
+  function handleAdFile(file){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        const wb = XLSX.read(e.target.result, { type: "array", cellDates: true });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+        const parsed = parseAdLogGrid(grid);
+        if (!parsed.length){
+          adLogRows = [];
+          adFileStatus.textContent = "✗ 找不到「日期」「金額」欄位，請確認檔案格式";
+          adFileStatus.className = "ad-file-status err";
+        } else {
+          adLogRows = parsed;
+          adFileStatus.textContent = "✓ " + file.name + "（" + parsed.length + " 筆日金額）";
+          adFileStatus.className = "ad-file-status ok";
+        }
+      } catch (err){
+        adLogRows = [];
+        adFileStatus.textContent = "✗ 讀取失敗：" + err.message;
+        adFileStatus.className = "ad-file-status err";
+      }
+      updateAdFallbackHint();
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function parseAdLogGrid(grid){
+    if (!grid.length) return [];
+    let headerRow = -1, dateCol = -1, amountCol = -1;
+    for (let r = 0; r < Math.min(grid.length, 20); r++){
+      const row = grid[r];
+      let dc = -1, ac = -1;
+      row.forEach((cell, c) => {
+        const s = String(cell || "");
+        if (dc === -1 && s.includes("日期")) dc = c;
+        if (ac === -1 && s.includes("金額")) ac = c;
+      });
+      if (dc !== -1 && ac !== -1){ headerRow = r; dateCol = dc; amountCol = ac; break; }
+    }
+    if (headerRow === -1) return [];
+    const out = [];
+    for (let r = headerRow + 1; r < grid.length; r++){
+      const row = grid[r];
+      if (!row) continue;
+      const d = parseDate(row[dateCol]);
+      const amt = toNum(row[amountCol]);
+      if (!d || !amt) continue;
+      out.push({ date: d, amount: Math.abs(amt) });
+    }
+    return out;
+  }
+
+  function updateAdFallbackHint(){
+    if (adLogRows.length){
+      adFallbackHint.textContent = "（已匯入明細檔，將依區間自動加總，忽略下方手動總額）";
+      adSpend.disabled = true;
+    } else {
+      adFallbackHint.textContent = "（尚未匯入明細檔，將使用此手動總額）";
+      adSpend.disabled = false;
+    }
+  }
+
+  function sumAdLogInRange(startStr, endStr){
+    if (!adLogRows.length) return null;
+    const s = new Date(startStr + "T00:00:00");
+    const e = new Date(endStr + "T23:59:59");
+    return adLogRows.reduce((sum, row) => (row.date >= s && row.date <= e) ? sum + row.amount : sum, 0);
   }
 
   function revealConfig(){
@@ -869,25 +978,36 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
   /* ============================================================
      Core aggregation for one period
      ============================================================ */
-  function buildReport(rows, adSpendValue){
+  function buildReport(rows, adSpendValue, adSpendSource){
     const kept = rows.filter(isKeptRow);
     const pending = kept.filter(isPendingRow);
 
     // dedupe orders for invoice fee + order count
     const orderIds = new Set(kept.map(r => String(r[COL.ORDER_ID])));
 
-    let gmv = 0, feeTxn = 0, feeOther = 0, feePayment = 0;
+    // 蝦皮原始資料同一訂單的每個商品選項列都會重複列出訂單層級費用
+    // （成交手續費/其他服務費/金流與系統處理費），加總時每張訂單只能算一次。
+    let gmv = 0;
+    const seenOrderForFees = new Set();
+    let feeTxn = 0, feeOther = 0, feePayment = 0;
     kept.forEach(r => {
       const lineTotal = toNum(r[COL.ITEM_PRICE]) * toNum(r[COL.QTY]);
       gmv += lineTotal;
+      const id = String(r[COL.ORDER_ID]);
+      if (seenOrderForFees.has(id)) return;
+      seenOrderForFees.add(id);
       feeTxn += toNum(r[COL.FEE_TXN]);
       feeOther += toNum(r[COL.FEE_OTHER]);
       feePayment += toNum(r[COL.FEE_PAYMENT]);
     });
 
     let pendingGmv = 0, pendingFees = 0;
+    const seenOrderForPendingFees = new Set();
     pending.forEach(r => {
       pendingGmv += toNum(r[COL.ITEM_PRICE]) * toNum(r[COL.QTY]);
+      const id = String(r[COL.ORDER_ID]);
+      if (seenOrderForPendingFees.has(id)) return;
+      seenOrderForPendingFees.add(id);
       pendingFees += toNum(r[COL.FEE_TXN]) + toNum(r[COL.FEE_OTHER]) + toNum(r[COL.FEE_PAYMENT]);
     });
     const orderReturn = pendingGmv - pendingFees;
@@ -905,6 +1025,7 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
 
     const adSpendNum = toNum(adSpendValue);
     const net = gmv - feeTxn - feeOther - feePayment - orderReturn - carrierFee - invoiceFee - adSpendNum;
+    const adSpendFromLog = adSpendSource === "log";
 
     // item aggregation — grouped and labeled by 商品選項貨號 (falls back to 商品選項名稱 only if 貨號 is blank)
     const itemMap = new Map(); // sku -> {name, qty, amount}
@@ -924,7 +1045,7 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
     const topAmount = [...items].sort((a,b) => b.amount - a.amount).slice(0,10);
 
     return {
-      gmv, feeTxn, feeOther, feePayment, orderReturn, carrierFee, invoiceFee, adSpend: adSpendNum, net,
+      gmv, feeTxn, feeOther, feePayment, orderReturn, carrierFee, invoiceFee, adSpend: adSpendNum, adSpendFromLog, net,
       pendingGmv, pendingFees, pendingCount: new Set(pending.map(r=>String(r[COL.ORDER_ID]))).size,
       orderCount: orderIds.size,
       items, topQty, topAmount
@@ -956,8 +1077,9 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
   function costRow(label, amount, base, opts){
     opts = opts || {};
     const pct = base ? Math.max(0, amount) / base : 0;
-    return '<tr>' +
-      '<td>' + label + (opts.manual ? '<span class="manual-flag">手動</span>' : '') + '</td>' +
+    const flag = opts.manual ? '<span class="manual-flag">手動</span>' : (opts.auto ? '<span class="manual-flag auto">明細檔自動</span>' : '');
+    return '<tr' + (opts.rowClass ? ' class="' + opts.rowClass + '"' : '') + '>' +
+      '<td>' + label + flag + '</td>' +
       '<td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + Math.min(100, pct*100).toFixed(1) + '%; background:' + (opts.color || "var(--series-1)") + '"></div></div><span class="pct">' + fmtPct(pct) + '</span></div></td>' +
       '<td class="num">' + fmtMoney(amount) + '</td>' +
       '</tr>';
@@ -1008,8 +1130,8 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
       costRow("訂單退貨（未完成）", report.orderReturn, base, {color:"var(--series-4)"}) +
       costRow("大榮＋補寄運費", report.carrierFee, base, {color:"var(--series-2)", manual:true}) +
       costRow("發票費用", report.invoiceFee, base, {color:"var(--series-1)"}) +
-      costRow("廣告扣款", report.adSpend, base, {color:"var(--series-2)", manual:true}) +
-      '<tr class="net"><td>期間蝦皮進帳</td><td></td><td class="num">' + fmtMoney(report.net) + '</td></tr>';
+      costRow("廣告扣款", report.adSpend, base, {color:"var(--series-2)", manual: !report.adSpendFromLog, auto: report.adSpendFromLog}) +
+      costRow("期間蝦皮進帳", report.net, base, {color:"var(--teal)", rowClass:"net"});
 
     const pendingBody = frag.querySelector(".rt-pending-body");
     pendingBody.innerHTML =
@@ -1353,7 +1475,7 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
     costLine("訂單退貨（未完成訂單預扣）", report.orderReturn);
     costLine("大榮＋補寄運費", report.carrierFee, "手動輸入");
     costLine("發票費用", report.invoiceFee);
-    costLine("廣告扣款", report.adSpend, "手動輸入");
+    costLine("廣告扣款", report.adSpend, report.adSpendFromLog ? "廣告明細檔自動加總" : "手動輸入");
     const costEndRow = rows.length - 1;
     r = push("期間蝦皮進帳", Math.round(report.net * 100) / 100); markRow(r, "net", 2);
     push("");
@@ -1480,9 +1602,11 @@ footer.foot a{ color: var(--accent-ink); text-decoration:none; }
     setTimeout(() => {
       const weekRows = filterByRange(weekStart.value, weekEnd.value);
       const monthRows = filterByRange(monthStart.value, monthEnd.value);
+      const weekAdLogSum = sumAdLogInRange(weekStart.value, weekEnd.value);
+      const monthAdLogSum = sumAdLogInRange(monthStart.value, monthEnd.value);
       currentReports = {
-        week: buildReport(weekRows, adSpend.value),
-        month: buildReport(monthRows, adSpend.value)
+        week: buildReport(weekRows, weekAdLogSum !== null ? weekAdLogSum : adSpend.value, weekAdLogSum !== null ? "log" : "manual"),
+        month: buildReport(monthRows, monthAdLogSum !== null ? monthAdLogSum : adSpend.value, monthAdLogSum !== null ? "log" : "manual")
       };
       document.getElementById("weekTabCount").textContent = "(" + currentReports.week.orderCount + " 筆)";
       document.getElementById("monthTabCount").textContent = "(" + currentReports.month.orderCount + " 筆)";
